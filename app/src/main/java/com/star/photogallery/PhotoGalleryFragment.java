@@ -1,8 +1,10 @@
 package com.star.photogallery;
 
 
+import android.content.Context;
 import android.content.res.Resources;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
@@ -39,9 +41,9 @@ public class PhotoGalleryFragment extends Fragment {
 
     private ProgressBar mProgressBar;
 
-    private int mCurrentPage = 1;
-    private int mFetchedPage = 0;
-    private int mCurrentPosition = 0;
+    private int mCurrentPage;
+    private int mFetchedPage;
+    private int mCurrentPosition;
 
     public static PhotoGalleryFragment newInstance() {
         return new PhotoGalleryFragment();
@@ -138,6 +140,22 @@ public class PhotoGalleryFragment extends Fragment {
             String query = QueryPreferences.getStoredQuery(getActivity());
             mSearchView.setQuery(query, false);
         });
+
+        MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
+
+        if (isServiceOn(getActivity())) {
+            toggleItem.setTitle(R.string.stop_polling);
+        } else {
+            toggleItem.setTitle(R.string.start_polling);
+        }
+    }
+
+    private boolean isServiceOn(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            return PollJobService.isServiceScheduleOn(context);
+        } else {
+            return PollIntentService.isServiceAlarmOn(context);
+        }
     }
 
     @Override
@@ -153,10 +171,31 @@ public class PhotoGalleryFragment extends Fragment {
                 mSearchView.onActionViewCollapsed();
 
                 return true;
+            case R.id.menu_item_toggle_polling:
+                setService(getActivity());
+
+                if (getActivity() == null) {
+                    return false;
+                }
+
+                getActivity().invalidateOptionsMenu();
+
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
 
+    private void setService(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            boolean shouldStartSchedule = !PollJobService.isServiceScheduleOn(context);
+
+            PollJobService.setServiceSchedule(getActivity(), shouldStartSchedule);
+        } else {
+            boolean shouldStartAlarm = !PollIntentService.isServiceAlarmOn(context);
+
+            PollIntentService.setServiceAlarm(getActivity(), shouldStartAlarm);
+        }
     }
 
     private void updateItems() {
